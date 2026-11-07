@@ -71,8 +71,8 @@ const others   = projects.filter(p => !p.featured);
       {others.length > 0 && (
         <ul id="projects-grid" class="grid-3" role="list" style="padding:0;list-style:none;margin-top:8px;">
           {others.map(project => (
-            <li>
-              <article class="card" data-category={project.category}>
+            <li data-category={project.category}>
+              <article class="card">
                 <span class="tag">{project.category.charAt(0).toUpperCase() + project.category.slice(1)}</span>
                 <h3 style="margin-top:10px;">{project.name}</h3>
                 <p class="muted" style="font-size:.9rem;margin:8px 0;">{project.description}</p>

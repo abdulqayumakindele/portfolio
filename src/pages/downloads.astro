@@ -1,0 +1,90 @@
+---
+import fs from 'node:fs';
+import path from 'node:path';
+import Layout from '../layouts/Layout.astro';
+import Header from '../components/Header.astro';
+import Footer from '../components/Footer.astro';
+import { articleDownloads } from '../data/content.js';
+
+// A PDF is offered only if its file exists in public/pdfs/ when the site is built (or served in dev).
+// If the file is missing, the card shows "PDF coming soon" instead of a broken link.
+const pdfDir = path.join(process.cwd(), 'public', 'pdfs');
+const items = articleDownloads.map((article) => ({
+  ...article,
+  available: fs.existsSync(path.join(pdfDir, article.file)),
+}));
+const availableCount = items.filter((item) => item.available).length;
+---
+<Layout title="Article Downloads | Abdul Qayum Akindele">
+<Header/>
+<main id="main-content">
+
+  <div class="wrap page-header">
+    <span class="tag" aria-hidden="true">Downloads</span>
+    <h1 class="page-title" style="margin-top:12px;">Article Downloads</h1>
+    <p class="page-subtitle">
+      PDF copies of the articles I've written, ready to download, save, or share.
+      Every article also links to its original published version.
+    </p>
+  </div>
+
+  <section class="section" aria-labelledby="downloads-heading">
+    <div class="wrap">
+      <h2 class="section-title" id="downloads-heading">Articles</h2>
+      <p class="section-lead">Technical writing and personal writing. Download the PDF, or read the original online.</p>
+
+      {availableCount === 0 && (
+        <div class="placeholder-box" role="status">
+          PDF copies are being added. In the meantime, each article can be read online through its original link.
+        </div>
+      )}
+
+      <ul class="grid-2" role="list" style="padding:0;list-style:none;">
+        {items.map((item) => (
+          <li>
+            <article class="card">
+              <span class="tag">{item.type}</span>
+              <h3 style="margin-top:10px;">{item.title}</h3>
+              <p class="card-date" style="margin-top:6px;">{item.platform}</p>
+              <p class="muted" style="font-size:.9rem;margin:10px 0 0;">{item.description}</p>
+              <div class="card-meta">
+                {item.available ? (
+                  <a
+                    class="btn primary"
+                    style="font-size:.85rem;padding:8px 16px;"
+                    href={`/pdfs/${item.file}`}
+                    download
+                    aria-label={`Download PDF: ${item.title}`}
+                  >
+                    Download PDF ↓
+                  </a>
+                ) : (
+                  <span class="status coming-soon">PDF coming soon</span>
+                )}
+                {item.url && (
+                  <a class="card-link" href={item.url} target="_blank" rel="noopener noreferrer">
+                    Read online ↗<span class="sr-only"> — {item.title} (opens in new tab)</span>
+                  </a>
+                )}
+              </div>
+            </article>
+          </li>
+        ))}
+      </ul>
+    </div>
+  </section>
+
+</main>
+<Footer/>
+</Layout>
+
+<style>
+  .placeholder-box {
+    border: 1px dashed rgba(255,255,255,.12);
+    border-radius: 10px;
+    padding: 20px 24px;
+    color: #9ca3b1;
+    font-size: .9rem;
+    margin-bottom: 24px;
+  }
+</style>
