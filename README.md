@@ -37,7 +37,7 @@ The current website includes:
 - Qualifications and credentials
 - Projects section
 - Technical and personal writing
-- Article downloads page (PDF copies of articles)
+- Article downloads page (PDF copies of articles, with search and category filtering)
 - Quotes and thoughts
 - Personal contact page
 - Personal social profiles
@@ -100,6 +100,7 @@ portfolio/
 │   │   └── photo.png
 │   │
 │   └── pdfs/
+│       ├── previews/
 │       └── README.md
 │
 └── src/
@@ -108,6 +109,7 @@ portfolio/
     │   └── Header.astro
     │
     ├── data/
+    │   ├── articles.js
     │   └── content.js
     │
     ├── layouts/
@@ -224,7 +226,6 @@ It currently contains data for:
 - Current focus areas
 - Current building areas
 - Writing
-- Article downloads
 - Quotes and thoughts
 - Projects
 - Qualifications
@@ -235,6 +236,12 @@ It currently contains data for:
 - Personal contact purposes
 
 This allows much of the site's content to be maintained separately from the page templates.
+
+---
+
+### `src/data/articles.js`
+
+This file holds the article catalog used by the Article Downloads page: title, category, platform, description, publication date, original link, and PDF file name. It is kept separate from `content.js` so it can grow to many articles without making the main content file hard to read.
 
 ---
 
@@ -382,13 +389,23 @@ The page also has a **Download Articles (PDF)** button that opens the Article Do
 
 The Article Downloads page lives at `/downloads`. It is not part of the main navigation. It is opened in a new tab from a button on the Writing page and has its own direct URL, so it can be shared on its own.
 
-It lists the articles I have written (technical and personal), each with:
+It lists the articles I have written (technical and personal), newest first. Each article shows:
 
-- A **Download PDF** button when the PDF is available
-- A **PDF coming soon** label when it is not yet available
-- A **Read online** link to the original published article
+- Its category, platform, and publication date
+- The PDF file size
+- A **Download PDF** button when the PDF is available, or a **PDF coming soon** label when it is not
+- A **Read online** link to the original published article (when there is one)
+- An optional cover preview image
 
-PDF files are stored in `public/pdfs/`. Each entry in `articleDownloads` (in `src/data/content.js`) has a `file` name. When the site is built, the page checks whether that file exists in `public/pdfs/` and shows the download button only if it does. To make a PDF available, add a file with the matching name and rebuild or push. To add a new article, add an entry to `articleDownloads` and add its PDF.
+Visitors can search by title or keyword and filter by category. The filter buttons are created from the categories (`type`) found in the data, so a new category appears automatically.
+
+The article list lives in `src/data/articles.js`. To add an article:
+
+1. Put its PDF in `public/pdfs/`.
+2. Add one entry to `articleDownloads` in `src/data/articles.js`.
+3. Optional: add a preview image in `public/pdfs/previews/` with the same name as the PDF but ending in `.webp`.
+
+When the site is built, the page checks which PDF and preview files exist, so a card never links to a missing file.
 
 ---
 
@@ -487,7 +504,7 @@ public/favicon.svg
 
 ### Article PDFs
 
-PDF copies of articles are stored in `public/pdfs/` and offered on the Article Downloads page. See `public/pdfs/README.md` for the expected file names.
+PDF copies of articles are stored in `public/pdfs/` and offered on the Article Downloads page. Optional cover previews (WebP, about 640 px wide) are stored in `public/pdfs/previews/`. See `public/pdfs/README.md` for how to add an article.
 
 ### OFF_LIMIT TECH Logo
 

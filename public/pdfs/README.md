@@ -1,17 +1,18 @@
 # Article PDFs
 
-Put the PDF copies of your articles in this folder. They are offered on the Article Downloads page (`/downloads`).
+PDF copies of your articles live in this folder. They are offered on the Article Downloads page (`/downloads`).
 
-File names must match the `file` values in `articleDownloads` in `src/data/content.js`:
+## Adding an article
 
-- `what-is-a-vpn.pdf`
-- `proxy-vs-vpn.pdf`
-- `ip-address-what-it-is-how-it-works.pdf`
-- `i-was-called-aspiring-then-i-realized.pdf`
-- `firewall-how-it-works-and-protects-you.pdf`
-- `dns-how-your-device-finds-a-website-on-the-internet.pdf`
-- `my-100-days-in-tech.pdf`
+1. Put the PDF here (lowercase-with-dashes names work best, for example `my-new-article.pdf`).
+2. Add one entry to `articleDownloads` in `src/data/articles.js`. Its `file` value must match the PDF's file name exactly.
+3. Optional: put a cover preview in the `previews/` folder with the same name as the PDF but ending in `.webp` (for example `previews/my-new-article.webp`). Use a landscape image about 640 px wide. Without it, the card is text-only.
 
-How it works: when the site is built (`npm run build`, or refreshed in `npm run dev`), each article card shows **Download PDF** if its file exists in this folder, and **PDF coming soon** if it does not. No code change is needed when you add a PDF. Drop the file in, then rebuild or push.
+## How it works
 
-To add a new article: add an entry to `articleDownloads` in `src/data/content.js` and put its PDF here with the same file name.
+When the site is built (`npm run build`, or refreshed in `npm run dev`), the page checks which files exist:
+
+- A PDF that exists shows **Download PDF** and its file size. A missing PDF shows **PDF coming soon**.
+- A preview that exists is shown on the card. No preview means a text-only card.
+
+No code change is needed beyond the entry in `src/data/articles.js`.

@@ -4,15 +4,44 @@ import path from 'node:path';
 import Layout from '../layouts/Layout.astro';
 import Header from '../components/Header.astro';
 import Footer from '../components/Footer.astro';
-import { articleDownloads } from '../data/content.js';
+import { articleDownloads } from '../data/articles.js';
 
-// A PDF is offered only if its file exists in public/pdfs/ when the site is built (or served in dev).
-// If the file is missing, the card shows "PDF coming soon" instead of a broken link.
+// Files are checked when the site is built (or served in dev), so a card never links to a missing file.
 const pdfDir = path.join(process.cwd(), 'public', 'pdfs');
-const items = articleDownloads.map((article) => ({
-  ...article,
-  available: fs.existsSync(path.join(pdfDir, article.file)),
-}));
+
+const formatDate = (iso) =>
+  iso
+    ? new Date(`${iso}T00:00:00Z`).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        timeZone: 'UTC',
+      })
+    : '';
+
+const formatSize = (bytes) =>
+  bytes >= 1024 * 1024
+    ? `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+    : `${Math.max(1, Math.round(bytes / 1024))} KB`;
+
+const items = articleDownloads
+  .map((article) => {
+    const pdfPath = path.join(pdfDir, article.file);
+    const available = fs.existsSync(pdfPath);
+    const previewName = article.file.replace(/\.pdf$/i, '.webp');
+    const hasPreview = fs.existsSync(path.join(pdfDir, 'previews', previewName));
+    return {
+      ...article,
+      available,
+      size: available ? formatSize(fs.statSync(pdfPath).size) : '',
+      dateLabel: formatDate(article.date),
+      preview: hasPreview ? `/pdfs/previews/${previewName}` : '',
+      searchText: [article.title, article.description, article.type, article.platform].join(' ').toLowerCase(),
+    };
+  })
+  .sort((a, b) => (b.date || '').localeCompare(a.date || '')); // newest first
+
+const types = [...new Set(items.map((item) => item.type))];
 const availableCount = items.filter((item) => item.available).length;
 ---
 <Layout title="Article Downloads | Abdul Qayum Akindele">
@@ -31,7 +60,23 @@ const availableCount = items.filter((item) => item.available).length;
   <section class="section" aria-labelledby="downloads-heading">
     <div class="wrap">
       <h2 class="section-title" id="downloads-heading">Articles</h2>
-      <p class="section-lead">Technical writing and personal writing. Download the PDF, or read the original online.</p>
+      <p class="section-lead">Search or filter, then download the PDF or read the original online.</p>
+
+      <div class="controls">
+        <label class="sr-only" for="article-search">Search articles</label>
+        <input id="article-search" class="search-input" type="search" placeholder="Search articles…" autocomplete="off" />
+
+        <div class="filter-bar" role="group" aria-label="Filter articles by category">
+          <button type="button" class="filter-btn active" data-type="all" aria-pressed="true">All</button>
+          {types.map((type) => (
+            <button type="button" class="filter-btn" data-type={type} aria-pressed="false">{type}</button>
+          ))}
+        </div>
+
+        <p id="results-count" class="results-count" aria-live="polite">
+          Showing {items.length} of {items.length} {items.length === 1 ? 'article' : 'articles'}
+        </p>
+      </div>
 
       {availableCount === 0 && (
         <div class="placeholder-box" role="status">
@@ -39,13 +84,34 @@ const availableCount = items.filter((item) => item.available).length;
         </div>
       )}
 
-      <ul class="grid-2" role="list" style="padding:0;list-style:none;">
+      <ul id="article-list" class="grid-2" role="list" style="padding:0;list-style:none;">
         {items.map((item) => (
-          <li>
-            <article class="card">
+          <li data-type={item.type} data-search={item.searchText}>
+            <article class="card article-card">
+              {item.preview && (
+                <div class="preview">
+                  <img
+                    src={item.preview}
+                    alt={`Cover image for ${item.title}`}
+                    width="640"
+                    height="360"
+                    loading="lazy"
+                    decoding="async"
+                  />
+                </div>
+              )}
               <span class="tag">{item.type}</span>
               <h3 style="margin-top:10px;">{item.title}</h3>
-              <p class="card-date" style="margin-top:6px;">{item.platform}</p>
+              <p class="platform">{item.platform}</p>
+              {(item.dateLabel || item.size) && (
+                <p class="meta-line">
+                  {item.dateLabel && (
+                    <span>Published <time datetime={item.date}>{item.dateLabel}</time></span>
+                  )}
+                  {item.dateLabel && item.size && <span aria-hidden="true"> · </span>}
+                  {item.size && <span>PDF · {item.size}</span>}
+                </p>
+              )}
               <p class="muted" style="font-size:.9rem;margin:10px 0 0;">{item.description}</p>
               <div class="card-meta">
                 {item.available ? (
@@ -71,6 +137,10 @@ const availableCount = items.filter((item) => item.available).length;
           </li>
         ))}
       </ul>
+
+      <p id="no-results" class="placeholder-box" role="status" hidden>
+        No articles match your search. Try a different word, or choose All.
+      </p>
     </div>
   </section>
 
@@ -78,7 +148,72 @@ const availableCount = items.filter((item) => item.available).length;
 <Footer/>
 </Layout>
 
+<script>
+  const searchInput = document.getElementById('article-search');
+  const countEl = document.getElementById('results-count');
+  const emptyEl = document.getElementById('no-results');
+  const cards = Array.from(document.querySelectorAll('#article-list > li'));
+  const filterBtns = Array.from(document.querySelectorAll('.filter-btn[data-type]'));
+  let activeType = 'all';
+
+  function applyFilters() {
+    const query = searchInput.value.trim().toLowerCase();
+    let shown = 0;
+    cards.forEach((card) => {
+      const typeOk = activeType === 'all' || card.dataset.type === activeType;
+      const textOk = !query || (card.dataset.search || '').includes(query);
+      const show = typeOk && textOk;
+      card.hidden = !show;
+      if (show) shown += 1;
+    });
+    countEl.textContent = `Showing ${shown} of ${cards.length} ${cards.length === 1 ? 'article' : 'articles'}`;
+    emptyEl.hidden = shown !== 0;
+  }
+
+  searchInput.addEventListener('input', applyFilters);
+  filterBtns.forEach((btn) => {
+    btn.addEventListener('click', () => {
+      activeType = btn.dataset.type;
+      filterBtns.forEach((b) => {
+        const on = b === btn;
+        b.classList.toggle('active', on);
+        b.setAttribute('aria-pressed', on ? 'true' : 'false');
+      });
+      applyFilters();
+    });
+  });
+  applyFilters();
+</script>
+
 <style>
+  .controls { margin-bottom: 28px; }
+  .search-input {
+    display: block;
+    width: 100%;
+    max-width: 420px;
+    margin-bottom: 18px;
+    background: rgba(255,255,255,.04);
+    border: 1px solid rgba(255,255,255,.14);
+    border-radius: 8px;
+    padding: 12px 16px;
+    color: #fff;
+    font-family: inherit;
+    font-size: .95rem;
+  }
+  .search-input::placeholder { color: #8a92a3; }
+  .search-input:focus { border-color: #267fff; }
+  .filter-bar { margin-bottom: 14px; }
+  .results-count { font-size: .85rem; color: #9ca3b1; }
+  .article-card { overflow: hidden; }
+  .preview {
+    margin: -24px -24px 18px;
+    aspect-ratio: 16 / 9;
+    background: #0a1424;
+    border-bottom: 1px solid rgba(255,255,255,.07);
+  }
+  .preview img { display: block; width: 100%; height: 100%; object-fit: contain; }
+  .platform { margin-top: 6px; font-size: .85rem; color: #9ca3b1; }
+  .meta-line { margin-top: 8px; font-size: .82rem; color: #9ca3b1; }
   .placeholder-box {
     border: 1px dashed rgba(255,255,255,.12);
     border-radius: 10px;
